@@ -1,2 +1,2 @@
-# report-generator
-persist ai report generator
+# project report-generator
+persist ai final project report generator for kenan and the lab team
