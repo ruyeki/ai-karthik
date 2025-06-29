@@ -1,7 +1,10 @@
-# Final Report: Development of [PROJECT_NAME] Formulations
+# Project Report: Development of [PROJECT_NAME] Formulations
+*Prepared for: [CLIENT NAME]*
 *Prepared by: [YOUR NAME]*
 *Department: [YOUR DEPARTMENT]*
-*Date: [SUBMISSION DATE]*
+*Date of Submission: [SUBMISSION DATE]*
+*Version: [VERSION NUMBER]*
+*ID: [ID NUMBER]*
 
 
 ## Summary
@@ -10,20 +13,22 @@ Briefly summarize the overall goal of the project, the main challenges addressed
 
 ## Introduction
 
-Provide background information on the drug/compound, its properties, and therapeutic relevance. Mention formulation challenges and rationale for the study.
+Provide background information on the drug/compound, its properties, therapeutic relevance, the experiment itself, for example. Mention any formulation challenges and rationale for the study.
 
 ## Objectives
 
-List the key objectives of the project. Use bullet points or concise paragraphs.
+List the key objectives of the project. Number the objectives or use concise paragraphs.
 
 ## Methodology
 
-Explain the formulation approach including:
+Explain the formulation approach including but no limited to:
 - Computational excipient prediction (if applicable)
 - Solvent solubility screening methodology
 - Formulation preparation steps
 - Analytical characterization techniques (e.g., HPLC, microscopy, turbidity)
 - Emulsion optimization strategy
+
+Go into great detail and include tables, images, or graphs where applicable.
 
 ## Results
 
@@ -35,6 +40,9 @@ Summarize key experimental findings, these may include (but not limited to):
 - Challenges encountered and solutions attempted
 
 Break into sub-sections if multiple experiments/cohorts were tested.
+
+Go into great detail and include tables, images, or graphs where applicable.
+
 
 ## Conclusion
 

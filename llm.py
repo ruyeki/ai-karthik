@@ -312,3 +312,5 @@ if query:
     
     for image in response['context']['images']:
         st.image(display_base64_image(image))
+
+        
