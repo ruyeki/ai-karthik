@@ -1,0 +1,17 @@
+python-dotenv
+unstructured[pdf]
+pdfminer.six
+ipython
+langchain
+langchain-groq
+langchain-core
+langchain-openai
+langchain-community
+langchain-huggingface
+huggingface-hub
+fpdf
+openai
+transformers
+chromadb==0.4.24
+flask
+flask-cors
