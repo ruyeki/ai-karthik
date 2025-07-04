@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from multi_modal_llm import process_pdf, summarize_content, connect_db, store_to_db, query_llm,create_new_db
+from multi_modal_llm import process_pdf, summarize_content, connect_db, store_to_db, query_llm,create_new_db, display_base64_image
 import os
 
 
@@ -9,8 +9,6 @@ CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
 
 UPLOAD_DIR = "./backend/documents/"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-
-retriever = connect_db("ava")
 
 #upload pdf and then parse, summarize, and store in db
 @app.route('/upload', methods=['POST'])
@@ -48,20 +46,23 @@ def upload_pdf():
 def query():
     data = request.get_json()
     question = data.get('question')
+    project_name = data.get('project_name')
     print("User question: ", question)
 
     if not question:
         return jsonify({"error": "No question provided"}), 400
 
+    retriever = connect_db(project_name)
 
     if retriever: 
         print("DB Connection is ready.")
     else: 
         return jsonify({"error": "Retriever not available"}), 500
 
-    text_response = query_llm(retriever, question)
+    result = query_llm(retriever, question)
+    image_response = result["image_response"]
 
-    return jsonify(text_response = text_response)
+    return jsonify(text_response = result["text_response"], images=[f"data:image/png;base64,{img}" for img in image_response])
 
 @app.route('/create_project', methods = ['POST'])
 def create_project(): 
@@ -78,6 +79,27 @@ def create_project():
     return jsonify({
         "message": f"Successfully created project: {project_name}"
     }), 200
+
+@app.route('/connect_to_db', methods = ['POST'])
+def connect_to_db(): 
+    data = request.get_json()
+    project_name = data.get('project_name')
+    print("This is the project name: ", project_name)
+
+    try: 
+        connect_db(project_name)
+
+    except Exception as e: 
+
+        return jsonify({
+            "message": f"Failed to connect to project: {project_name}"
+        }), 400
+
+
+    return jsonify({
+        "message": f"Successfully connected to project: {project_name}"
+    }), 200
+
 
 if __name__ == '__main__':
     app.run(debug=True)

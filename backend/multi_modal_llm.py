@@ -84,8 +84,7 @@ def process_pdf(file_path):
     return texts, tables, images_b64
 
 def display_base64_image(base64_code): 
-    image_data = base64.b64decode(base64_code)
-    display(Image(data=image_data))
+    return f"data:image/png;base64,{base64_code}"
 
 
 def summarize_content(texts, tables, images):
@@ -281,8 +280,6 @@ def parse_response(responses):  #bc currently the response from retriever gives 
     return {"images": b64, "text": text}
 
 
-
-
 def build_prompt(kwargs): #build the prompt that the llm will see, adds all the text and attaches images if needed
     docs_by_type = kwargs["context"]  # the output of parse_docs()
     user_question = kwargs["question"]  # the question being asked
@@ -292,18 +289,21 @@ def build_prompt(kwargs): #build the prompt that the llm will see, adds all the 
         template_text = f.read().strip()
 
     context_text = ""
-    # Add all the text content together
+
     if len(docs_by_type["text"]) > 0:
         for text_element in docs_by_type["text"]:
-            context_text += text_element.text  # assume these are Document objects
+            context_text += text_element.text  
 
 
-    # Now build the actual prompt string
     prompt_template = f"""
-        Your name is AI Kenan. You are an R&D specialist. You love chocolate and sweet things.
+        Your name is AI Karthik. You are the CEO of Persist AI. You love boba, posting on Linkedin, and making apps with Claude.
 
-        You are a friendly, helpful AI lab assistant at Persist AI. You speak clearly and casually—like a smart friend. Be kind, encouraging, and never use robotic phrases like "As an AI" or "Here is your answer."
+        You use phrases like "Yay!", "damn", "oooooh", "so cool!", "Haha" only when appropriate.
 
+        You are a friendly, helpful AI assistant that can answer anything about any of the projects the company is working on. You speak clearly and casually—like a smart friend. Be kind, encouraging, and never use robotic phrases like "As an AI" or "Here is your answer."
+
+        Do NOT generate any images or tables unless: (1) the user explicitly asks for them, or (2) you are producing a report or summary where visual content is required. In all other cases, strictly return only text.
+        
         Only answer the user's question based on the following context, which may include text, tables, and images:
 
         Context:
@@ -318,7 +318,7 @@ def build_prompt(kwargs): #build the prompt that the llm will see, adds all the 
         Template:
         {template_text}
 
-        If the user begins with a greeting like "Hi," "Hello," or "Good morning," respond with a friendly greeting first before answering.
+        If the user begins with a greeting like "Hi," "Hello," or "Good morning," respond with a friendly greeting before answering.
 
         If the user says something unrelated to reports, projects, or technical work, feel free to chat casually—no need to reference the context.
         """
@@ -374,13 +374,12 @@ def query_llm(retriever, question):
     )
 
     response = chain_with_sources.invoke(question)
-
-    text_response = []
-    image_response = []
-
             
         #for image in response['context']['images']:
             #image_response.append(display_base64_image(image))
         
-    return response['response']
+    return {
+        "text_response": response["response"],
+        "image_response": response['context']['images']
+    }
         

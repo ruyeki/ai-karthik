@@ -3,107 +3,202 @@ import { Button } from "@heroui/button";
 import { Form } from "@heroui/form";
 import { useState } from "react";
 import { Card } from "@heroui/card";
-import { User } from "@heroui/react";
+import { User } from "@heroui/react";  // removed unused 'image'
 import "@chatscope/chat-ui-kit-styles/dist/default/styles.min.css";
 import { TypingIndicator } from "@chatscope/chat-ui-kit-react";
+import ReactMarkdown from "react-markdown";
+import { TypeAnimation } from "react-type-animation";
+import { Image } from "@heroui/image";
+import {Spinner} from "@heroui/react";
+import {Progress} from "@heroui/progress";
 
-export default function Chat() {
+export default function Chat({projectName}) {
   const [userText, setUserText] = useState("");
-  const [chatText, setChatText] = useState("");
-  const [isLoading, setLoading] = useState(false); 
+  const [isLoading, setLoading] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [images, setImages] = useState([]);
+  const [formDisabled, setFormDisabled] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!userText.trim()) return; //if user input is blank do nothing
+
+    setLoading(true);
+    setMessages((prev) => [...prev, { role: "user", content: userText }]);
     setUserText("");
-
-    if (!userText.trim()) return; //if user clicks enter and input is blank, nothing happens
-
-    setLoading(true); // start loading indicator
+    setImages([]);
 
     try {
       const response = await fetch("http://127.0.0.1:5000/query", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: userText }),
+        body: JSON.stringify({ question: userText, project_name: projectName}),
       });
 
       const chatResponse = await response.json();
-      setChatText(chatResponse.text_response || "Something went wrong. Try again.");
+      console.log(chatResponse);
+
+      const botMessage = chatResponse.text_response || "Something went wrong. Try again.";
+
+      const botImages = Array.isArray(chatResponse.images) ? chatResponse.images : [];
+      
+      //this is really hacky, probably need to come up with something better
+      const shouldIncludeImage = userText.toLowerCase().includes("image") || userText.toLowerCase().includes("summar") || userText.toLowerCase().includes("report") || userText.toLowerCase().includes("table") || userText.toLowerCase().includes("graph") || userText.toLowerCase().includes("data") || userText.toLowerCase().includes("visual");
+
+      setImages(botImages);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "chatbot",
+          content: botMessage,
+          images: shouldIncludeImage  ? botImages : [],
+        },
+      ]);
     } catch (error) {
       console.error("Error sending user query:", error);
-      setChatText("Oops! Something went wrong.");
+      setMessages((prev) => [
+        ...prev,
+        { role: "chatbot", content: "Damn, something went wrong. Try again!" },
+      ]);
     }
-    setLoading(false); // stop loading
+
+    setLoading(false);
   };
 
+  // Group messages in pairs: user + bot
+  const groupedMessages = [];
+  for (let i = 0; i < messages.length; i++) {
+    if (messages[i].role === "user") {
+      if (messages[i + 1] && messages[i + 1].role === "chatbot") {
+        groupedMessages.push([messages[i], messages[i + 1]]);
+        i++;
+      } else {
+        groupedMessages.push([messages[i]]);
+      }
+    } else {
+      groupedMessages.push([messages[i]]);
+    }
+  }
+
   return (
-    <div className="fixed bottom-0 left-0 w-full bg-white p-4 shadow-md">
-      <div className="max-h-80 overflow-y-auto max-w-3xl mx-auto mb-20">
-        {isLoading && (
-          <div
-            style={{
-              margin: "10px 0",
-              alignSelf: "flex-start",
-              color: "#888",
-              fontStyle: "italic",
-            }}
-            className="flex items-center gap-2"
-          >
-            <User
-              avatarProps={{
-                src: "https://media.licdn.com/dms/image/v2/C5603AQGqnSJy_C5s_w/profile-displayphoto-shrink_200_200/profile-displayphoto-shrink_200_200/0/1549603008865?e=2147483647&v=beta&t=mJOD2T5cgGPrRu_j-Knr-cbQcVRVuaJgDUWuG_XI7PE",
-              }}
-              className="flex-shrink-0"
-              isFocusable={true}
-            />
-            <TypingIndicator  />
+    
+    <div className="flex flex-col h-[95vh] bg-white">
+
+      {/* Chat messages section */}
+      <div className="flex-1 overflow-y-auto px-4 py-5 max-w-8xl mx-auto w-full">
+        {groupedMessages.length === 0 && !projectName &&(
+          <div>
+            <h1 className="text-4xl text-center absolute inset-0 flex items-center justify-center pointer-events-none select-none ms-60 mb-20">
+              <TypeAnimation
+                sequence={["Welcome.", 1500, "Select a project to get started.", 1500]}
+              />
+            </h1>
           </div>
         )}
 
-        {chatText && (
-          <div className="flex items-start gap-2 mb-3">
+        {projectName && groupedMessages.length === 0 && (
+          <div>
+            <h1 className="text-4xl text-center absolute inset-0 flex items-center justify-center pointer-events-none select-none ms-60 mb-20">
+              <TypeAnimation
+                sequence={[`Welcome to project ${projectName}.`, 1500]}
+              />
+            </h1>
+          </div>
+        )}
+        
+        {groupedMessages.map((pair, idx) => (
+          <div key={idx}>
+            {pair.map((message, index) => {
+              const isUser = message.role === "user";
+              return (
+                <div key={index} className="flex items-start gap-2 mb-3">
+                  {!isUser && (
+                    <User
+                      avatarProps={{
+                        src: "https://media.licdn.com/dms/image/v2/C5603AQHOSz9IYYlDQw/profile-displayphoto-shrink_400_400/profile-displayphoto-shrink_400_400/0/1630514668239?e=2147483647&v=beta&t=5gxGeIgoopocSdhFM7497-2w7RMRUXQydvAsQGtoBm0",
+                      }}
+                      className="flex-shrink-0"
+                      isFocusable={true}
+                    />
+                  )}
+                  <Card
+                    className={`p-3 mb-3 w-full ${
+                      isUser ? "bg-blue-50" : "bg-gray-50"
+                    }`}
+                  >
+                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                    {message.images && message.images.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {message.images.map((img, index) => (
+                          <Image key={index} src={img} />
+                        ))}
+                      </div>
+                    )}
+                      </Card>
+                </div>
+              );
+            })}
+          </div>
+        ))}
+
+        {isLoading && (
+          <div className="flex items-center gap-2 text-gray-500 italic mb-3">
             <User
               avatarProps={{
-                src: "https://media.licdn.com/dms/image/v2/C5603AQGqnSJy_C5s_w/profile-displayphoto-shrink_200_200/profile-displayphoto-shrink_200_200/0/1549603008865?e=2147483647&v=beta&t=mJOD2T5cgGPrRu_j-Knr-cbQcVRVuaJgDUWuG_XI7PE",
+                src: "https://media.licdn.com/dms/image/v2/C5603AQGqnSJy_C5s_w/profile-displayphoto-shrink_200_200/0/1549603008865?e=2147483647&v=beta&t=mJOD2T5cgGPrRu_j-Knr-cbQcVRVuaJgDUWuG_XI7PE",
               }}
               className="flex-shrink-0"
               isFocusable={true}
             />
-            <Card className="p-3 text-sm text-gray-800 rounded-lg bg-gray-100 flex-1 shadow-sm">
-              <p className="whitespace-pre-wrap">{chatText}</p>
-            </Card>
+            <Spinner variant="dots" />
           </div>
         )}
       </div>
-
-      <Form onSubmit={handleSubmit}>
-        <div className="flex items-center gap-2 max-w-3xl mx-auto w-full">
+      <Form onSubmit={handleSubmit} className="mt-5">
+        <div className="flex items-center gap-2 max-w-6xl mx-auto w-full mt-5">
           <Input
             type="text"
-            placeholder="Ask anything..."
-            className="flex-1"
+            className="flex-1 h-10"
             value={userText}
             onChange={(e) => setUserText(e.target.value)}
             name="user-input"
+            size="lg"
+            placeholder="Ask AI Karthik anything..."
+            disabled={!projectName || formDisabled}
           />
-          <Button type="submit" color="primary" aria-label="Send">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth="1.5"
-              stroke="currentColor"
-              className="w-5 h-5 scale-x-[-1]"
-            >
-              <path
+          <Button
+            type="submit"
+            color="primary"
+            aria-label="Send"
+            className="rounded-full flex items-center justify-center mb-[-10px]"
+            radius="full"
+            isLoading={isLoading}
+            size="lg"
+            variant="ghost"
+            disabled={!projectName || formDisabled}
+          >
+            {!isLoading && (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                d="M3.75 12L20.25 3.75 16.5 12l3.75 8.25L3.75 12z"
-              />
-            </svg>
+              >
+                <path d="M12 19V5M5 12l7-7 7 7" />
+              </svg>
+            )}
           </Button>
         </div>
       </Form>
+      <p className="justify-center text-center text-xs mt-5 mr-20 ms-[-20]">
+        AI Karthik can make mistakes. Check important info.
+      </p>
     </div>
   );
 }
