@@ -12,10 +12,9 @@ import { Image } from "@heroui/image";
 import {Spinner} from "@heroui/react";
 import {Progress} from "@heroui/progress";
 
-export default function Chat({projectName}) {
+export default function Chat({projectName, messages, setMessages}) {
   const [userText, setUserText] = useState("");
   const [isLoading, setLoading] = useState(false);
-  const [messages, setMessages] = useState([]);
   const [images, setImages] = useState([]);
   const [formDisabled, setFormDisabled] = useState(false);
 
@@ -158,7 +157,8 @@ export default function Chat({projectName}) {
       </div>
       <Form onSubmit={handleSubmit} className="mt-5">
         <div className="flex items-center gap-2 max-w-6xl mx-auto w-full mt-5">
-          <Input
+
+          <Input 
             type="text"
             className="flex-1 h-10"
             value={userText}
@@ -167,6 +167,31 @@ export default function Chat({projectName}) {
             size="lg"
             placeholder="Ask AI Karthik anything..."
             disabled={!projectName || formDisabled}
+          />
+          <label
+            htmlFor="fileUpload"
+            className="cursor-pointer w-12 h-12 flex items-center justify-center rounded-full hover:bg-primary text-black shadow-lg transition mt-3 border-2 border-primary"
+            title="Upload File"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="blue"
+              strokeWidth="2"
+              
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+          </label>
+
+          <Input
+            id="fileUpload"
+            type="file"
+            accept=".pdf, .one, .doc, .docx, .txt"
+            multiple
+            className="hidden"
           />
           <Button
             type="submit"
@@ -194,6 +219,8 @@ export default function Chat({projectName}) {
               </svg>
             )}
           </Button>
+
+          
         </div>
       </Form>
       <p className="justify-center text-center text-xs mt-5 mr-20 ms-[-20]">

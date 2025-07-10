@@ -79,7 +79,11 @@ export default function MySidebar({onSelectProject}) {
         }}
       >
         <Menu iconShape="circle">
-          <MenuItem style={menuItemStyle} onClick={() => handleSideBarClick("ava")}>AVA</MenuItem>
+          <MenuItem style={menuItemStyle} onClick={() => handleSideBarClick("Allo")}>ALLO</MenuItem>
+        </Menu>
+
+        <Menu iconShape="circle">
+          <MenuItem style={menuItemStyle} onClick={() => handleSideBarClick("test1")}>TEST1</MenuItem>
         </Menu>
 
         <div className="p-4 flex flex-col gap-3">

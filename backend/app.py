@@ -1,13 +1,13 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from multi_modal_llm import process_pdf, summarize_content, connect_db, store_to_db, query_llm,create_new_db, display_base64_image
+from helper_functions import process_pdf, summarize_content, connect_db, store_to_db, query_llm,create_new_db, display_base64_image, process_html
 import os
 
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
 
-UPLOAD_DIR = "./backend/documents/"
+UPLOAD_DIR = "./documents/"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 #upload pdf and then parse, summarize, and store in db
@@ -53,6 +53,7 @@ def query():
         return jsonify({"error": "No question provided"}), 400
 
     retriever = connect_db(project_name)
+    print(retriever)
 
     if retriever: 
         print("DB Connection is ready.")
@@ -87,7 +88,8 @@ def connect_to_db():
     print("This is the project name: ", project_name)
 
     try: 
-        connect_db(project_name)
+        connect_db(project_name) #return retriever for a project
+        print("DB Connected Successfully")
 
     except Exception as e: 
 
@@ -99,7 +101,6 @@ def connect_to_db():
     return jsonify({
         "message": f"Successfully connected to project: {project_name}"
     }), 200
-
 
 if __name__ == '__main__':
     app.run(debug=True)

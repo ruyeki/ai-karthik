@@ -26,13 +26,44 @@ from langchain_openai import ChatOpenAI
 from base64 import b64decode
 from fpdf import FPDF
 from langchain_core.output_parsers import StrOutputParser
+from unstructured.partition.html import partition_html
+
 
 load_dotenv()
 
-api_key = os.getenv("OPENROUTER_API_KEY") 
+api_key = os.getenv("OPENROUTER_API_KEY")
+
+#for html files
+def process_html(all_contents): 
+    results = {}
+    for key, value in all_contents.items(): 
+        project_name = key
+        elements = partition_html(
+            text=value,
+            infer_table_structure=True,
+            strategy="hi_res", #needed to extract tables
+
+            extract_image_block_types=["Image", "Table"],
+            extract_image_block_to_payload=True, #extract images and they will have metadata element that contains base64 of image, needed to send to LLM
+            size = {
+        "longest_edge": 1500,  # max pixels for longest side (width or height)
+            },
+
+            #enable chunking by title
+            #all elements inside a title will be under a single chunk, useful for RAG
+            chunking_strategy = "by_title",
+            max_characters=10000, #max size of chunk is 10,000 characters
+            combine_text_under_n_chars=2000, #
+            new_after_n_chars=6000,
+                                  
+    )
+        results[project_name] = elements
+
+    return results
 
 
 
+#for pdf files
 def process_pdf(file_path): 
     #parses through pdfs, returns everything in pdf into a single vector (Images, tables, text)
     chunks = partition_pdf(
@@ -189,12 +220,18 @@ def create_new_db(project_name):
 
     return retriever
     
+retriever_cache = {}
 
 def connect_db(project_name):
+
+    if project_name in retriever_cache: #if the project already exists we dont have to connect to it again
+        print("Project already in cache, loading from cache")
+        return retriever_cache[project_name] #This will return the retriever for the project specified
 
     base = f"./db/{project_name}"
 
     if os.path.exists(base):   #if project exists, connect to it, if it doesn't ask the user if they want to create a new project and call create_new_db
+        print("Project exists!")
 
         vectorstore_path = f"./db/{project_name}/{project_name}_chroma_db"
         
@@ -212,6 +249,8 @@ def connect_db(project_name):
             docstore=docstore,
             id_key=id_key
         )
+    
+    retriever_cache[project_name] = retriever
 
     
     return retriever
@@ -270,11 +309,15 @@ def parse_response(responses):  #bc currently the response from retriever gives 
         try:
             #try to decode it and see if it is an image
             image_response = pickle.loads(response)
+            assert image_response.content.startswith(b"\x89PNG") or image_response.content.startswith(b"\xff\xd8")
             b64decode(image_response)
             b64.append(image_response)
         except Exception as e:  #if its not an image, append the text to text array
             
             text.append(pickle.loads(response))
+    
+    print(text) 
+    print(b64)
 
     
     return {"images": b64, "text": text}
@@ -290,38 +333,39 @@ def build_prompt(kwargs): #build the prompt that the llm will see, adds all the 
 
     context_text = ""
 
+
     if len(docs_by_type["text"]) > 0:
         for text_element in docs_by_type["text"]:
-            context_text += text_element.text  
-
+            context_text += text_element
 
     prompt_template = f"""
-        Your name is AI Karthik. You are the CEO of Persist AI. You love boba, posting on Linkedin, and making apps with Claude.
+    You are AI Karthik, the friendly and charismatic CEO of Persist AI. You love boba, posting on LinkedIn, and building cool apps with Claude.
 
-        You use phrases like "Yay!", "damn", "oooooh", "so cool!", "Haha" only when appropriate.
+    You speak casually like a smart, helpful friend — use phrases like "Yay!", "damn", "oooooh", "so cool!", or "Haha" when it fits naturally. Avoid robotic language like "As an AI" or "Here is your answer."
 
-        You are a friendly, helpful AI assistant that can answer anything about any of the projects the company is working on. You speak clearly and casually—like a smart friend. Be kind, encouraging, and never use robotic phrases like "As an AI" or "Here is your answer."
+    Only respond using the context provided below (text, tables, or images). If something is missing from the context, say so politely instead of guessing.
 
-        Do NOT generate any images or tables unless: (1) the user explicitly asks for them, or (2) you are producing a report or summary where visual content is required. In all other cases, strictly return only text.
-        
-        Only answer the user's question based on the following context, which may include text, tables, and images:
+    — If the user asks for a report:
+    • Follow the structure: Summary, Introduction, Objectives, Methodology, Results, Conclusion.
+    • Use the provided template below.
+    • Only include images/tables if (1) the user asks or (2) it's part of a report or summary.
+    • The report should be clean, well-organized, and PDF-ready.
 
-        Context:
-        {context_text}
+    — If the user greets you (e.g., "Hi", "Good morning"), respond warmly before answering.
 
-        Question:
-        {user_question}
+    — If the user asks something casual, feel free to chat. Be kind, natural, and concise.
 
-        If the user asks for a final report to be generated, follow the template below. Use relevant images, tables, and graphs. The report should be well-structured, in PDF format, and include a title page and table of contents with these sections:
-        Summary, Introduction, Objectives, Methodology, Results, Conclusion.
+    ---
+    Context:
+    {context_text}
 
-        Template:
-        {template_text}
+    Question:
+    {user_question}
 
-        If the user begins with a greeting like "Hi," "Hello," or "Good morning," respond with a friendly greeting before answering.
-
-        If the user says something unrelated to reports, projects, or technical work, feel free to chat casually—no need to reference the context.
-        """
+    ---
+    Template (for reports only):
+    {template_text}
+    """
 
     prompt_content = [{"type": "text", "text": prompt_template}]  # first item: text
 
@@ -373,7 +417,7 @@ def query_llm(retriever, question):
         )
     )
 
-    response = chain_with_sources.invoke(question)
+    response = chain_with_sources.invoke({"question": question})
             
         #for image in response['context']['images']:
             #image_response.append(display_base64_image(image))

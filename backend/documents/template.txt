@@ -13,7 +13,7 @@ Briefly summarize the overall goal of the project, the main challenges addressed
 
 ## Introduction
 
-Provide background information on the drug/compound, its properties, therapeutic relevance, the experiment itself, for example. Mention any formulation challenges and rationale for the study.
+Provide background information on, for example, the drug/compound, its properties, therapeutic relevance, the experiment itself. Mention any challenges as well as the purpose of the study.
 
 ## Objectives
 
@@ -21,23 +21,13 @@ List the key objectives of the project. Number the objectives or use concise par
 
 ## Methodology
 
-Explain the formulation approach including but no limited to:
-- Computational excipient prediction (if applicable)
-- Solvent solubility screening methodology
-- Formulation preparation steps
-- Analytical characterization techniques (e.g., HPLC, microscopy, turbidity)
-- Emulsion optimization strategy
+Explain the approach to conducting this experiment.
 
 Go into great detail and include tables, images, or graphs where applicable.
 
 ## Results
 
-Summarize key experimental findings, these may include (but not limited to):
-- Best solvents or excipient combinations
-- Observed solubility and stability outcomes
-- Interpretation of HPLC/microscopy data (described textually)
-- Comparisons across formulation batches
-- Challenges encountered and solutions attempted
+Summarize key experimental findings based on the data and experiments conducted. 
 
 Break into sub-sections if multiple experiments/cohorts were tested.
 
@@ -49,8 +39,8 @@ Go into great detail and include tables, images, or graphs where applicable.
 Conclude with:
 - Overall assessment of successful and failed strategies
 - Recommendations for the next steps
-- Future directions (e.g., transdermal potential, scale-up feasibility, further modeling)
+- Future directions
 
-Highlight the most promising formulation(s) and explain why.
+Highlight the most promising formulation(s) and explain why. Provide at least a paragraph worth of content. 
 
 ---
