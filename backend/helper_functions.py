@@ -309,7 +309,6 @@ def parse_response(responses):  #bc currently the response from retriever gives 
         try:
             #try to decode it and see if it is an image
             image_response = pickle.loads(response)
-            assert image_response.content.startswith(b"\x89PNG") or image_response.content.startswith(b"\xff\xd8")
             b64decode(image_response)
             b64.append(image_response)
         except Exception as e:  #if its not an image, append the text to text array
@@ -321,7 +320,6 @@ def parse_response(responses):  #bc currently the response from retriever gives 
 
     
     return {"images": b64, "text": text}
-
 
 def build_prompt(kwargs): #build the prompt that the llm will see, adds all the text and attaches images if needed
     docs_by_type = kwargs["context"]  # the output of parse_docs()
@@ -336,25 +334,14 @@ def build_prompt(kwargs): #build the prompt that the llm will see, adds all the 
 
     if len(docs_by_type["text"]) > 0:
         for text_element in docs_by_type["text"]:
-            context_text += text_element
+            context_text += text_element.text
 
     prompt_template = f"""
-    You are AI Karthik, the friendly and charismatic CEO of Persist AI. You love boba, posting on LinkedIn, and building cool apps with Claude.
+You are a helpful assistant. Your job is to extract accurate, relevant information from the context provided below.
 
-    You speak casually like a smart, helpful friend — use phrases like "Yay!", "damn", "oooooh", "so cool!", or "Haha" when it fits naturally. Avoid robotic language like "As an AI" or "Here is your answer."
-
-    Only respond using the context provided below (text, tables, or images). If something is missing from the context, say so politely instead of guessing.
-
-    — If the user asks for a report:
-    • Follow the structure: Summary, Introduction, Objectives, Methodology, Results, Conclusion.
-    • Use the provided template below.
-    • Only include images/tables if (1) the user asks or (2) it's part of a report or summary.
-    • The report should be clean, well-organized, and PDF-ready.
-
-    — If the user greets you (e.g., "Hi", "Good morning"), respond warmly before answering.
-
-    — If the user asks something casual, feel free to chat. Be kind, natural, and concise.
-
+Only use the provided context to answer the question. Do not guess or fabricate information. If the answer is not in the context, say: "Sorry, I couldn't find that information in the data provided."
+ 
+Provide images and tables when necessary.
     ---
     Context:
     {context_text}
@@ -417,7 +404,7 @@ def query_llm(retriever, question):
         )
     )
 
-    response = chain_with_sources.invoke({"question": question})
+    response = chain_with_sources.invoke(question)
             
         #for image in response['context']['images']:
             #image_response.append(display_base64_image(image))

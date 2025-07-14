@@ -2,7 +2,9 @@ import React from "react";
 import { Sidebar as ProSidebar, Menu, MenuItem } from "react-pro-sidebar";
 import { Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Input, Form } from "@heroui/react";
 import {Image} from "@heroui/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import {Progress} from "@heroui/react";
+
 
 export default function MySidebar({onSelectProject}) {
 
@@ -10,8 +12,15 @@ export default function MySidebar({onSelectProject}) {
   const [backdrop, setBackdrop] = React.useState("opaque");
   const [userInput, setUserInput] = useState("");
   const [isLoading, setLoading] = useState(false);
+  const [projectNames, setProjectNames] = useState([]);
+  const [activeProject, setActiveProject] = useState("");
+  const [activeProjectLoading, setActiveProjectLoading] = useState(false);
 
   const backdrops = ["opaque", "blur", "transparent"];
+
+  useEffect(()=>{
+    getProjects();
+  }, []);
 
   const handleOpen = (backdropType) => {
     setBackdrop(backdropType);
@@ -46,7 +55,10 @@ export default function MySidebar({onSelectProject}) {
   }
 
   const handleSideBarClick = async (projectName) =>{
+    setActiveProjectLoading(true);
+
     setLoading(true);
+    setActiveProject(projectName);
     onSelectProject(projectName);
 
     try{
@@ -65,7 +77,29 @@ export default function MySidebar({onSelectProject}) {
     }finally{
 
     setLoading(false);
+      setTimeout(() => {
+    setActiveProjectLoading(false);
+  }, 500); 
+    }
+  }
 
+  const getProjects = async() => {
+    try{
+      const response = await fetch("http://127.0.0.1:5000/get_project_names",{
+        method: "GET"
+      });
+
+      if(!response.ok){
+        throw new Error(`HTTP error. Status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log(data);
+
+      setProjectNames(data.projects);
+
+    }catch (error){
+      console.error(error);
     }
   }
 
@@ -76,17 +110,25 @@ export default function MySidebar({onSelectProject}) {
           height: "100vh",
           backgroundColor: "#f9fafb",
           borderRight: "1px solid #e5e7eb",
+          justifyContent: "space-between",
         }}
       >
-        <Menu iconShape="circle">
-          <MenuItem style={menuItemStyle} onClick={() => handleSideBarClick("Allo")}>ALLO</MenuItem>
-        </Menu>
+      <div className="overflow-y-auto">
+      
+      {activeProjectLoading&& (
+      <Progress isIndeterminate aria-label="Loading..." className="sticky top-0 max-w-md" size="sm" />
+      )}
 
-        <Menu iconShape="circle">
-          <MenuItem style={menuItemStyle} onClick={() => handleSideBarClick("test1")}>TEST1</MenuItem>
+      {projectNames.map((project, index) => (
+        <Menu iconShape="circle" key={project.id}>
+          <MenuItem style={menuItemStyle} onClick={() => handleSideBarClick(project.name)} active = {activeProject === project.name}>
+            {project.name}
+          </MenuItem>
         </Menu>
+      ))}
+      </div>
 
-        <div className="p-4 flex flex-col gap-3">
+        <div className="sticky bottom-0 bg-[#f9fafb] p-4 flex flex-col gap-3 ">
 
           <Button key = "blur" className = "capitalize" variant = "ghost" onPress={() => handleOpen("blur")}>Add Project</Button>
 
