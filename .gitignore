@@ -1,2 +1,7 @@
 .env
 node_modules
+backend/db/
+backend/db/**
+backend/caches/
+backend/caches/**
+*.pkl
