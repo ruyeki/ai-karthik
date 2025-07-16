@@ -482,4 +482,4 @@ def parse_response(responses):  #bc currently the response from retriever gives 
     print(b64)
 
     
-    return {"images": b64, "text": text}
+    return {"images": b64, "text": text} 

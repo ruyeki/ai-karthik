@@ -11,3 +11,4 @@ class Projects(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), unique=True, nullable=False)
     file_path = db.Column(db.String(255), nullable=False)
+    

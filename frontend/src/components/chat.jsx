@@ -38,9 +38,13 @@ export default function Chat({projectName, messages, setMessages}) {
       const chatResponse = await response.json();
       console.log(chatResponse);
 
-      const botMessage = chatResponse.text_response || "Something went wrong. Try again.";
+      let botMessage = chatResponse.text_response || "Something went wrong. Try again.";
 
-      const botImages = Array.isArray(chatResponse.images) ? chatResponse.images : [];
+      if(chatResponse.doc_url){
+          botMessage += `\n\n\n\n[DOWNLOAD REPORT](${chatResponse.doc_url})`;
+      }
+
+      const botImages = Array.isArray(chatResponse.imageas) ? chatResponse.images : [];
       
       //this is really hacky, probably need to come up with something better
       const shouldIncludeImage = userText.toLowerCase().includes("image") || userText.toLowerCase().includes("summar") || userText.toLowerCase().includes("report") || userText.toLowerCase().includes("table") || userText.toLowerCase().includes("graph") || userText.toLowerCase().includes("data") || userText.toLowerCase().includes("visual");
