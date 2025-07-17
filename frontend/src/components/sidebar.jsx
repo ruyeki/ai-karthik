@@ -4,6 +4,7 @@ import { Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDi
 import {Image} from "@heroui/react";
 import { useState, useEffect } from "react";
 import {Progress} from "@heroui/react";
+import {Spinner} from "@heroui/react";
 
 
 export default function MySidebar({onSelectProject}) {
@@ -15,7 +16,7 @@ export default function MySidebar({onSelectProject}) {
   const [projectNames, setProjectNames] = useState([]);
   const [activeProject, setActiveProject] = useState("");
   const [activeProjectLoading, setActiveProjectLoading] = useState(false);
-
+  const [sideBarLoading, setSideBarLoading] = useState(false);
   const backdrops = ["opaque", "blur", "transparent"];
 
   useEffect(()=>{
@@ -84,6 +85,9 @@ export default function MySidebar({onSelectProject}) {
   }
 
   const getProjects = async() => {
+
+    setSideBarLoading(true);
+
     try{
       const response = await fetch("http://127.0.0.1:5000/get_project_names",{
         method: "GET"
@@ -100,6 +104,8 @@ export default function MySidebar({onSelectProject}) {
 
     }catch (error){
       console.error(error);
+    }finally{
+      setSideBarLoading(false);
     }
   }
 
@@ -119,13 +125,19 @@ export default function MySidebar({onSelectProject}) {
       <Progress isIndeterminate aria-label="Loading..." className="sticky top-0 max-w-md" size="sm" />
       )}
 
+        {sideBarLoading ? (
+          <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+            <Spinner size="lg" />
+          </div>
+        ) : (
+      <Menu iconShape="circle">
       {projectNames.map((project, index) => (
-        <Menu iconShape="circle" key={project.id}>
           <MenuItem style={menuItemStyle} onClick={() => handleSideBarClick(project.name)} active = {activeProject === project.name}>
             {project.name}
           </MenuItem>
-        </Menu>
       ))}
+      </Menu>
+  )}
       </div>
 
         <div className="sticky bottom-0 bg-[#f9fafb] p-4 flex flex-col gap-3 ">

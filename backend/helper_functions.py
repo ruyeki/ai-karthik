@@ -33,6 +33,8 @@ load_dotenv()
 
 api_key = os.getenv("OPENROUTER_API_KEY")
 
+
+
 #for html files
 def process_html(all_contents): 
     results = {}

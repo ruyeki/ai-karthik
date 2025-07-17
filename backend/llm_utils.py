@@ -20,6 +20,7 @@ import google.generativeai as genai
 from langchain_google_genai import ChatGoogleGenerativeAI
 from fpdf import FPDF
 import asyncio
+from docx import Document
 
 # Load API key
 load_dotenv()
@@ -27,6 +28,9 @@ api_key = os.getenv("GEMINI_API_KEY")
 openai_api_key = os.getenv("OPENROUTER_API_KEY")
 
 genai.configure(api_key=api_key)
+
+
+doc = Document()
 
 
 #This is not as good as 2.5 pro, but use this in case the gemini tokens that karthik gave run out
@@ -41,8 +45,8 @@ model = ChatOpenAI(
 
 #better chat model for report generation
 model = ChatGoogleGenerativeAI(
-    model="google/gemini-2.5-pro-exp-03-25", 
-    google_api_key=openai_api_key,
+    model="gemini-2.5-pro", 
+    google_api_key=api_key,
     temperature=0.3
 )
 
@@ -391,6 +395,28 @@ async def generate_full_report(retriever, project_name):
     )
     
     intro_summary, methodology, results_section, conclusion = results
+
+
+    doc.add_heading('Project Report', 0)
+
+    doc.add_heading('Introduction', 1)
+    doc.add_paragraph("")
+    doc.add_paragraph(intro_summary)
+
+    doc.add_heading("Methodology", 1)
+    doc.add_paragraph("")
+    doc.add_paragraph(methodology)
+
+    doc.add_heading("Results", 1)
+    doc.add_paragraph("")
+    doc.add_paragraph(results_section)
+
+    doc.add_heading("Conclusion", 1)
+    doc.add_paragraph("")
+    doc.add_paragraph(conclusion)
+
+    doc.save('static/documents/output.docx')
+
     
     full_report = f"""
     {intro_summary}\n
@@ -402,6 +428,8 @@ async def generate_full_report(retriever, project_name):
     {conclusion}
     """
     return full_report
+
+
 
 
 #This is what is going to get called in my helper_functions file
@@ -463,23 +491,3 @@ def casual_conversation_agent(question):
     return chain.invoke({"user_question": question}) 
 
 
-def parse_response(responses):  #bc currently the response from retriever gives us weird number/letter combos representing text and images
-    b64=[]
-    text=[]
-
-    for response in responses: 
-        try:
-            #try to decode it and see if it is an image
-            image_response = pickle.loads(response)
-            assert image_response.content.startswith(b"\x89PNG") or image_response.content.startswith(b"\xff\xd8")
-            b64decode(image_response)
-            b64.append(image_response)
-        except Exception as e:  #if its not an image, append the text to text array
-            
-            text.append(pickle.loads(response))
-    
-    print(text) 
-    print(b64)
-
-    
-    return {"images": b64, "text": text} 

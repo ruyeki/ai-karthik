@@ -1,16 +1,17 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, url_for, send_from_directory
 from flask_cors import CORS
 from helper_functions import process_pdf, summarize_content, connect_db, store_to_db, query_llm,create_new_db, display_base64_image, process_html
 import os
 from flask_sqlalchemy import SQLAlchemy
 from models import db, Projects
-from llm_utils import run_generate_report, classify_intent, casual_conversation_agent
+from llm_utils import classify_intent, casual_conversation_agent, run_generate_report
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
 
 UPLOAD_DIR = "./documents/"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
 
 #upload pdf and then parse, summarize, and store in db
 @app.route('/upload', methods=['POST'])
@@ -65,7 +66,8 @@ def query():
     elif intent == "generate_report": 
         print("generating report")
         retriever = connect_db(project_name)
-        return jsonify(text_response = run_generate_report(retriever, project_name))
+        doc_url = url_for('static', filename='documents/output.docx', _external = True)
+        return jsonify(text_response = run_generate_report(retriever, project_name), doc_url = doc_url)
 
     elif intent == "get_data": 
         print("getting data")
