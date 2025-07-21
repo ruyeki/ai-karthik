@@ -326,10 +326,7 @@ def parse_response(responses):  #bc currently the response from retriever gives 
 def build_prompt(kwargs): #build the prompt that the llm will see, adds all the text and attaches images if needed
     docs_by_type = kwargs["context"]  # the output of parse_docs()
     user_question = kwargs["question"]  # the question being asked
-    template = './documents/template.txt'
 
-    with open(template, 'r', encoding='utf-8',) as f:
-        template_text = f.read().strip()
 
     context_text = ""
 
@@ -339,11 +336,11 @@ def build_prompt(kwargs): #build the prompt that the llm will see, adds all the 
             context_text += text_element.text
 
     prompt_template = f"""
-You are a helpful assistant. Your job is to extract accurate, relevant information from the context provided below.
+        You are a helpful assistant. Your job is to extract accurate, relevant information from the context provided below.
 
-Only use the provided context to answer the question. Do not guess or fabricate information. If the answer is not in the context, say: "Sorry, I couldn't find that information in the data provided."
- 
-Provide images and tables when necessary.
+        Only use the provided context to answer the question. Do not guess or fabricate information. If the answer is not in the context, say: "Sorry, I couldn't find that information in the data provided."
+        
+        Provide images and tables when necessary.
     ---
     Context:
     {context_text}
@@ -352,8 +349,7 @@ Provide images and tables when necessary.
     {user_question}
 
     ---
-    Template (for reports only):
-    {template_text}
+
     """
 
     prompt_content = [{"type": "text", "text": prompt_template}]  # first item: text

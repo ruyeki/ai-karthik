@@ -17,6 +17,8 @@ export default function Chat({projectName, messages, setMessages}) {
   const [isLoading, setLoading] = useState(false);
   const [images, setImages] = useState([]);
   const [formDisabled, setFormDisabled] = useState(false);
+  const [fileList, setFileList] = useState([]);
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,11 +30,25 @@ export default function Chat({projectName, messages, setMessages}) {
     setUserText("");
     setImages([]);
 
+    const formData = new FormData();
+    formData.append("question", userText);
+    formData.append("project_name", projectName);
+
+    for(let i = 0; i<fileList.length; ++i){
+      formData.append("pdf", fileList[i]);
+    }
+
+    console.log("Files in formData:");
+    for (let [key, value] of formData.entries()) {
+      console.log(key, value.name || value);
+    }
+
+
+
     try {
       const response = await fetch("http://127.0.0.1:5000/query", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: userText, project_name: projectName}),
+        body: formData,
       });
 
       const chatResponse = await response.json();
@@ -44,10 +60,12 @@ export default function Chat({projectName, messages, setMessages}) {
           botMessage += `\n\n\n\n[DOWNLOAD REPORT](${chatResponse.doc_url})`;
       }
 
-      const botImages = Array.isArray(chatResponse.imageas) ? chatResponse.images : [];
-      
+      const botImages = Array.isArray(chatResponse.images) ? chatResponse.images : [];
+
+      console.log("These are the images ", botImages);
+
       //this is really hacky, probably need to come up with something better
-      const shouldIncludeImage = userText.toLowerCase().includes("image") || userText.toLowerCase().includes("summar") || userText.toLowerCase().includes("report") || userText.toLowerCase().includes("table") || userText.toLowerCase().includes("graph") || userText.toLowerCase().includes("data") || userText.toLowerCase().includes("visual");
+      //const shouldIncludeImage = userText.toLowerCase().includes("image") || userText.toLowerCase().includes("summar") || userText.toLowerCase().includes("report") || userText.toLowerCase().includes("table") || userText.toLowerCase().includes("graph") || userText.toLowerCase().includes("data") || userText.toLowerCase().includes("visual");
 
       setImages(botImages);
 
@@ -56,7 +74,7 @@ export default function Chat({projectName, messages, setMessages}) {
         {
           role: "chatbot",
           content: botMessage,
-          images: shouldIncludeImage  ? botImages : [],
+          images: botImages,
         },
       ]);
     } catch (error) {
@@ -68,6 +86,7 @@ export default function Chat({projectName, messages, setMessages}) {
     }
 
     setLoading(false);
+    setFileList([]);
   };
 
   // Group messages in pairs: user + bot
@@ -127,7 +146,7 @@ export default function Chat({projectName, messages, setMessages}) {
                     />
                   )}
                   <Card
-                    className={`p-3 mb-3 w-full ${
+                    className={`p-3 mb-3 w-full break-words ${
                       isUser ? "bg-blue-50" : "bg-gray-50"
                     }`}
                   >
@@ -159,7 +178,7 @@ export default function Chat({projectName, messages, setMessages}) {
           </div>
         )}
       </div>
-      <Form onSubmit={handleSubmit} className="mt-5">
+      <Form onSubmit={handleSubmit} className="mt-5" encType="multipart/form-data">
         <div className="flex items-center gap-2 max-w-6xl mx-auto w-full mt-5">
 
           <Input 
@@ -194,8 +213,10 @@ export default function Chat({projectName, messages, setMessages}) {
             id="fileUpload"
             type="file"
             accept=".pdf"
+            name = "pdf"
             multiple
             className="hidden"
+            onChange={(e) => setFileList(e.target.files)}
           />
           <Button
             type="submit"

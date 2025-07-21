@@ -3,79 +3,326 @@ from flask_cors import CORS
 from helper_functions import process_pdf, summarize_content, connect_db, store_to_db, query_llm,create_new_db, display_base64_image, process_html
 import os
 from flask_sqlalchemy import SQLAlchemy
-from models import db, Projects
-from llm_utils import classify_intent, casual_conversation_agent, run_generate_report
-
+from models import db, Projects, Reports
+from llm_utils import (
+    classify_intent,
+    casual_conversation_agent,
+    run_generate_report,
+    classify_edit_intent,
+    edit_introduction_section,
+    edit_objectives_section,
+    edit_summary_section,
+    edit_conclusion_section,
+    edit_methodology_section,
+    edit_results_section,
+    generate_docx,
+    formatting_agent
+)
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
 
-UPLOAD_DIR = "./documents/"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+UPLOAD_DIR = "./documents/" #sets a folder path called documents in current directory
+os.makedirs(UPLOAD_DIR, exist_ok=True) #creates documents folder if it doesnt alrdy exist
 
 
-#upload pdf and then parse, summarize, and store in db
-@app.route('/upload', methods=['POST'])
-def upload_pdf(): 
-    if 'file' not in request.files:
-        return jsonify({"error": "No file part"}), 400
-    file = request.files['file']
-    project_name = request.form.get('project_name', 'default')
+#this is the database that holds all the project names along with the generated reports for each project
+basedir = os.path.abspath(os.path.dirname(__file__))
+db_folder = os.path.join(basedir, 'db')
+os.makedirs(db_folder, exist_ok=True)
 
-    if file.filename == '':
-        return jsonify({"error": "No selected file"}), 400
-    if not file.filename.endswith('.pdf'):
-        return jsonify({"error": "Only PDF files allowed"}), 400
+db_path = os.path.join(db_folder, 'project_db.sqlite')
+app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{db_path}"
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-    file_path = os.path.join(UPLOAD_DIR, file.filename)
-    file.save(file_path)
+db.init_app(app)
 
-    # Process PDF
-    texts, tables, images = process_pdf(file_path)
 
-    # Summarize content
-    text_summaries, table_summaries, image_summaries = summarize_content(texts, tables, images)
+with app.app_context():
 
-    # Connect or create DB for project
-    retriever = connect_db(project_name)
+    #THIS CODE POPULATES THE PROJECTS TABLE (dont need it anymore)
+    '''
+    basedir = os.path.dirname(os.path.abspath(__file__))
+    base_path = os.path.join(basedir, "db")
 
-    # Store data in DB
-    store_to_db(retriever, text_summaries, texts, image_summaries, images, tables, table_summaries)
+    if not os.path.exists(base_path):
+        print(f"Folder not found: {base_path}")
+    else:
+        for folder_name in os.listdir(base_path):
+            folder_path = os.path.join(base_path, folder_name)
+            if os.path.isdir(folder_path):
+                print(f"Adding project: {folder_name}, Path: {folder_path}")
 
-    return jsonify({"message": f"Uploaded and processed {file.filename} for project {project_name}"}), 200
+                project_data = Projects(
+                    name=folder_name,
+                    file_path=folder_path
+                )
 
+                db.session.add(project_data)
+
+        db.session.commit()
+        print("All projects added to the database.")
+        '''
+    db.create_all()
+
+    #db.drop_all()
+    #db.session.commit()
 
 
 @app.route('/query', methods=['POST'])
 def query():
-    data = request.get_json()
-    question = data.get('question')
-    project_name = data.get('project_name')
+
+    question = request.form.get("question")
+    project_name = request.form.get('project_name')
+    files = request.files.getlist('pdf')
     retriever = connect_db(project_name)
     print("User question: ", question)
+    print("Uploaded pdf: ", files)
+
+
+    #handle pdf uploads first: 
+
+    if files:
+        for file in files:
+            if file and file.filename.endswith('.pdf'):
+                print(f"Processing file: {file.filename}")
+                file_path = os.path.join(UPLOAD_DIR, file.filename)
+                file.save(file_path)
+
+                # Process PDF
+                texts, tables, images = process_pdf(file_path)
+
+                # Summarize content
+                text_summaries, table_summaries, image_summaries = summarize_content(texts, tables, images)
+
+                # Store data in DB
+                store_to_db(retriever, text_summaries, texts, image_summaries, images, tables, table_summaries)
+
+        print("All files successfully processed!")
+
+
 
     if not question:
         return jsonify({"error": "No question provided"}), 400
     
     intent = classify_intent(question)
 
+
     if intent == "casual": 
         print("Casual")
         result = casual_conversation_agent(question)
         return jsonify(text_response = result)
-    
-    elif intent == "generate_report": 
-        print("generating report")
-        retriever = connect_db(project_name)
-        doc_url = url_for('static', filename='documents/output.docx', _external = True)
-        return jsonify(text_response = run_generate_report(retriever, project_name), doc_url = doc_url)
 
-    elif intent == "get_data": 
+    if intent == "generate_report": 
+        report_data = Reports.query.filter_by(project_name = project_name).first()
+
+        if not report_data: #if no report has been generated yet, add it to the database
+            
+            print("no report found, generating a new one")
+            full_report, summary, introduction, objectives, methodology, results_section, conclusion = run_generate_report(retriever, project_name)
+
+            report_data = Reports(
+                project_name = project_name,
+                summary = summary,
+                introduction = introduction,
+                objectives = objectives,
+                methodology = methodology,
+                results = results_section,
+                conclusion = conclusion
+            )
+
+            db.session.add(report_data)
+            db.session.commit()
+
+        
+        else: #if the report already exists in the database, return it
+            print("report found, displaying to ui...")
+            full_report = f"""
+                    {report_data.summary}\n
+                    \n
+                    {report_data.introduction}\n
+                    \n
+                    {report_data.objectives}\n
+                    \n
+                    {report_data.methodology}\n
+                    \n
+                    {report_data.results}\n
+                    \n
+                    {report_data.conclusion}\n
+                    \n
+                    """
+            generate_docx(report_data.summary, report_data.introduction, report_data.objectives, report_data.methodology, report_data.results, report_data.conclusion)
+            
+            #check for intent to edit HERE 
+
+            edit_intent = classify_edit_intent(question)
+            print(f"editing {edit_intent}")
+
+            if edit_intent == "introduction": 
+                new_introduction = edit_introduction_section(retriever, question, report_data.introduction)
+                formatted_introduction = formatting_agent("Introduction", new_introduction)
+                full_report = f"""
+                        {report_data.summary}\n
+                        \n
+                        {formatted_introduction}\n
+                        \n
+                        {report_data.objectives}\n
+                        \n
+                        {report_data.methodology}\n
+                        \n
+                        {report_data.results}\n
+                        \n
+                        {report_data.conclusion}\n
+                        \n
+                        """
+                
+                report_data.introduction = formatted_introduction
+                db.session.commit()
+
+                generate_docx(report_data.summary, report_data.introduction, report_data.objectives, report_data.methodology,  report_data.results,report_data.conclusion)
+                print("introduction successfully edited")
+
+            elif edit_intent == "summary": 
+                new_summary = edit_summary_section(retriever, question, report_data.summary)
+                formatted_summary = formatting_agent("Summary", new_summary)
+                full_report = f"""
+                        {formatted_summary}\n
+                        \n
+                        {report_data.introduction}\n
+                        \n
+                        {report_data.objectives}\n
+                        \n
+                        {report_data.methodology}\n
+                        \n
+                        {report_data.results}\n
+                        \n
+                        {report_data.conclusion}\n
+                        \n
+                        """
+                
+                report_data.summary = formatted_summary
+                db.session.commit()
+                generate_docx(report_data.summary, report_data.introduction, report_data.objectives, report_data.methodology,  report_data.results,report_data.conclusion)
+                print("summary successfully edited")
+                
+            elif edit_intent == "conclusion": 
+                new_conclusion = edit_conclusion_section(retriever, question, report_data.conclusion)
+                formatted_conclusion = formatting_agent("Conclusion", new_conclusion)
+                full_report = f"""
+                        {report_data.summary}\n
+                        \n
+                        {report_data.introduction}\n
+                        \n
+                        {report_data.objectives}\n
+                        \n
+                        {report_data.methodology}\n
+                        \n
+                        {report_data.results}\n
+                        \n
+                        {formatted_conclusion}\n
+                        \n
+                        """
+                
+                report_data.conclusion = formatted_conclusion
+                db.session.commit()
+                generate_docx(report_data.summary, report_data.introduction, report_data.objectives, report_data.methodology,  report_data.results,report_data.conclusion)
+                print("conclusion successfully edited")
+
+            elif edit_intent == "methodology": 
+                new_methodology = edit_methodology_section(retriever, question, report_data.conclusion, project_name)
+                formatted_methodology = formatting_agent("Methodology", new_methodology)
+                full_report = f"""
+                        {report_data.summary}\n
+                        \n
+                        {report_data.introduction}\n
+                        \n
+                        {report_data.objectives}\n
+                        \n
+                        {formatted_methodology}\n
+                        \n
+                        {report_data.results}\n
+                        \n
+                        {report_data.conclusion}\n
+                        \n
+                        """
+                
+                report_data.methodology = formatted_methodology
+                db.session.commit()
+                generate_docx(report_data.summary, report_data.introduction, report_data.objectives, report_data.methodology,  report_data.results, report_data.conclusion)
+                print("methodology successfully edited")
+
+            elif edit_intent == "results": 
+                new_results = edit_results_section(retriever, question, report_data.results, project_name)
+                formatted_results = formatting_agent("Results", new_results)
+                full_report = f"""
+                        {report_data.summary}\n
+                        \n
+                        {report_data.introduction}\n
+                        \n
+                        {report_data.objectives}\n
+                        \n
+                        {report_data.methodology}\n
+                        \n
+                        {formatted_results}\n
+                        \n
+                        {report_data.conclusion}\n
+                        \n
+                        """
+                
+                report_data.results = formatted_results
+                db.session.commit()
+                generate_docx(report_data.summary, report_data.introduction, report_data.objectives, report_data.methodology,  report_data.results, report_data.conclusion)
+                print("results successfully edited")
+            
+            elif edit_intent == "objectives": 
+                new_objectives = edit_objectives_section(retriever, question, report_data.objectives)
+                formatted_objectives = formatting_agent("Objectives", new_objectives)
+                full_report = f"""
+                        {report_data.summary}\n
+                        \n
+                        {report_data.introduction}\n
+                        \n
+                        {formatted_objectives}\n
+                        \n
+                        {report_data.methodology}\n
+                        \n
+                        {report_data.results}\n
+                        \n
+                        {report_data.conclusion}\n
+                        \n
+                        """
+                
+                report_data.objectives = formatted_objectives
+                db.session.commit()
+                generate_docx(report_data.summary, report_data.introduction, report_data.objectives, report_data.methodology,  report_data.results, report_data.conclusion)
+                print("objectives successfully edited")        
+            
+            else: #if the edit intent was none, return whats already in the database
+                full_report = f"""
+                        {report_data.summary}\n
+                        \n
+                        {report_data.introduction}\n
+                        \n
+                        {report_data.objectives}\n
+                        \n
+                        {report_data.methodology}\n
+                        \n
+                        {report_data.results}\n
+                        \n
+                        {report_data.conclusion}\n
+                        \n
+                        """
+                generate_docx(report_data.summary, report_data.introduction, report_data.objectives, report_data.methodology,  report_data.results, report_data.conclusion)  
+
+        doc_url = url_for('static', filename='documents/output.docx', _external = True)
+        return jsonify(text_response = full_report, doc_url = doc_url)
+
+    if intent == "get_data": 
         print("getting data")
         result = query_llm(retriever, question)
         image_response = result["image_response"]
+        #print(f"This is images: {image_response}")
 
         return jsonify(text_response = result["text_response"], images=[f"data:image/png;base64,{img}" for img in image_response])
-    
 
 
 @app.route('/create_project', methods = ['POST'])
@@ -116,15 +363,6 @@ def connect_to_db():
         "message": f"Successfully connected to project: {project_name}"
     }), 200
 
-basedir = os.path.abspath(os.path.dirname(__file__))
-db_folder = os.path.join(basedir, 'db')
-os.makedirs(db_folder, exist_ok=True)
-
-db_path = os.path.join(db_folder, 'project_db.sqlite')
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{db_path}"
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-db.init_app(app)
 
 #to get names of all the projects for the sidebar
 @app.route('/get_project_names', methods = ['GET'])
