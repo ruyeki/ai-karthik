@@ -79,8 +79,8 @@ export default function MySidebar({onSelectProject}) {
 
     setLoading(false);
       setTimeout(() => {
-    setActiveProjectLoading(false);
-  }, 500); 
+      setActiveProjectLoading(false);
+    }, 500); 
     }
   }
 

@@ -16,7 +16,8 @@ from llm_utils import (
     edit_methodology_section,
     edit_results_section,
     generate_docx,
-    formatting_agent
+    formatting_agent,
+    regenerate_report
 )
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
@@ -294,7 +295,28 @@ def query():
                 report_data.objectives = formatted_objectives
                 db.session.commit()
                 generate_docx(report_data.summary, report_data.introduction, report_data.objectives, report_data.methodology,  report_data.results, report_data.conclusion)
-                print("objectives successfully edited")        
+                print("objectives successfully edited")      
+
+            elif edit_intent == "regenerate": 
+                full_report, summary, introduction, objectives, methodology, results_section, conclusion = run_generate_report(retriever, project_name)
+
+                summary = formatting_agent("Summary", summary)
+                introduction = formatting_agent("Introduction", introduction)
+                methodology = formatting_agent("Methodology", methodology)
+                results_section = formatting_agent("Results", results_section)
+                conclusion = formatting_agent("Conclusion", conclusion)
+
+                report_data.summary = summary
+                report_data.introduction = introduction
+                report_data.methodology = methodology
+                report_data.results_section = results_section
+                report_data.conclusion = conclusion
+                
+                db.session.commit()
+
+                generate_docx(summary, introduction, objectives, methodology,  results_section, conclusion)
+                print("report successfully regenerated!")     
+
             
             else: #if the edit intent was none, return whats already in the database
                 full_report = f"""
@@ -337,6 +359,15 @@ def create_project():
 
     #creates databases for the project (vector and doc store)
     create_new_db(project_name)
+    file_path = os.path.join(os.path.dirname(__file__), 'db', project_name)
+
+    new_project = Projects(
+        name = project_name,
+        file_path = file_path
+    )
+
+    db.session.add(new_project)
+    db.session.commit()
 
     return jsonify({
         "message": f"Successfully created project: {project_name}"

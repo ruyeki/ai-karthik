@@ -533,6 +533,8 @@ def classify_edit_intent(question):
     You are a helpful assistant that classifies user sentences into one of the following intents based on what section of the report the user wants to edit.
                                                        
     If the user is not asking to modify or edit any sections, return none.
+                                                       
+    If the user wants to regenerate the entire report or edit the entire report, return regenerate.
 
     - introduction
     - summary
@@ -541,6 +543,7 @@ def classify_edit_intent(question):
     - results
     - conclusion
     - none
+    - regenerate
                                                        
     Your task is to return **only** the intent label, and nothing else.
 
@@ -564,6 +567,75 @@ def classify_edit_intent(question):
     return chain.invoke({"user_question": question})  
 
 response = classify_edit_intent({})
+
+
+import json
+import re
+
+#This is to regenerate the entire report
+def regenerate_report(retriever, user_request, old_report, project_name): 
+    summaries = get_all_summaries(retriever)
+    context = "\n".join(summaries)
+    if os.path.exists("./caches/all_content_cache.pkl"): 
+        with open("./caches/all_content_cache.pkl", "rb") as f: 
+            all_content = pickle.load(f)
+
+    project_raw_documents = all_content[project_name]
+
+    prompt_template = ChatPromptTemplate.from_template("""
+    You are a professional scientific report editor.
+
+    You will receive:
+    - The original full report,
+    - The project context (summaries + raw content),
+    - A user request to modify the report.
+
+    Your job:
+    - Rewrite the report according to the user request and context.
+    - Return the result as **valid JSON** with these exact keys:
+    - "summary"
+    - "introduction"
+    - "objectives"
+    - "methodology"
+    - "results"
+    - "conclusion"
+
+    ### Formatting Rules:
+    - No extra text, explanation, or commentary.
+    - Respond with ONLY the JSON. Do not include markdown, headings, or code blocks.
+
+    ---
+    User Request:
+    {user_request}
+
+    Original Report:
+    {old_report}
+
+    Context:
+    {context}
+    {project_raw_documents}
+
+    ---
+    REVISED REPORT (as JSON):
+    """)
+
+    chain = prompt_template | model | StrOutputParser()
+
+    json_report = chain.invoke({
+        "context": context,
+        "old_report": old_report,
+        "project_raw_documents": project_raw_documents,
+        "user_request": user_request
+    })
+
+    json_report_cleaned = re.sub(r"```(?:json)?", "", json_report).strip()
+
+    structured_report = json.loads(json_report_cleaned)
+
+    print(structured_report)
+
+    return structured_report
+
 
 def edit_introduction_section(retriever, user_request, old_introduction):
     """

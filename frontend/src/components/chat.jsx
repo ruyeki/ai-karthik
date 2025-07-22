@@ -1,7 +1,7 @@
 import { Input } from "@heroui/input";
 import { Button } from "@heroui/button";
 import { Form } from "@heroui/form";
-import { useState } from "react";
+import { useState, useEffect, useRef} from "react";
 import { Card } from "@heroui/card";
 import { User } from "@heroui/react";  // removed unused 'image'
 import "@chatscope/chat-ui-kit-styles/dist/default/styles.min.css";
@@ -11,6 +11,7 @@ import { TypeAnimation } from "react-type-animation";
 import { Image } from "@heroui/image";
 import {Spinner} from "@heroui/react";
 import {Progress} from "@heroui/progress";
+import {Chip} from "@heroui/chip";
 
 export default function Chat({projectName, messages, setMessages}) {
   const [userText, setUserText] = useState("");
@@ -18,6 +19,7 @@ export default function Chat({projectName, messages, setMessages}) {
   const [images, setImages] = useState([]);
   const [formDisabled, setFormDisabled] = useState(false);
   const [fileList, setFileList] = useState([]);
+  const [showWelcome, setShowWelcome] = useState(false);
 
 
   const handleSubmit = async (e) => {
@@ -104,6 +106,7 @@ export default function Chat({projectName, messages, setMessages}) {
     }
   }
 
+
   return (
     
     <div className="flex flex-col h-[95vh] bg-white">
@@ -129,6 +132,7 @@ export default function Chat({projectName, messages, setMessages}) {
             </h1>
           </div>
         )}
+        
         
         {groupedMessages.map((pair, idx) => (
           <div key={idx}>
@@ -177,6 +181,7 @@ export default function Chat({projectName, messages, setMessages}) {
             <Spinner variant="dots" />
           </div>
         )}
+        
       </div>
       <Form onSubmit={handleSubmit} className="mt-5" encType="multipart/form-data">
         <div className="flex items-center gap-2 max-w-6xl mx-auto w-full mt-5">
@@ -216,7 +221,8 @@ export default function Chat({projectName, messages, setMessages}) {
             name = "pdf"
             multiple
             className="hidden"
-            onChange={(e) => setFileList(e.target.files)}
+            onChange={(e) => setFileList(Array.from(e.target.files))}
+            disabled={!projectName || formDisabled}
           />
           <Button
             type="submit"
@@ -244,10 +250,21 @@ export default function Chat({projectName, messages, setMessages}) {
               </svg>
             )}
           </Button>
-
-          
+                    
         </div>
       </Form>
+      
+      <div className = "flex flex-wrap items-center gap-2 max-w-6xl mx-auto w-full mt-3">
+      {fileList && fileList.map((file, index) => (
+            <div key={index}>
+              <Chip color = "primary" variant = "bordered" onClose={() => setFileList(prevFiles => prevFiles.filter((_, i) => i !== index))}>
+                {file.name}
+              </Chip>
+            </div>
+          ))} 
+      </div>
+
+
       <p className="justify-center text-center text-xs mt-5 mr-20 ms-[-20]">
         AI Karthik can make mistakes. Check important info.
       </p>
