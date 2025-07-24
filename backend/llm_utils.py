@@ -1085,5 +1085,3 @@ def casual_conversation_agent(question):
     chain = prompt | model | StrOutputParser()
 
     return chain.invoke({"user_question": question}) 
-
-

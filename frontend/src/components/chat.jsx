@@ -127,9 +127,9 @@ export default function Chat({projectName, messages, setMessages}) {
           <div>
             <h1 className="text-4xl text-center absolute inset-0 flex items-center justify-center pointer-events-none select-none ms-60 mb-20">
               <TypeAnimation
-                sequence={[`Welcome to ${projectName}.`, 1300]} 
-              />
-            </h1>
+                key={projectName} sequence={[`Welcome to ${projectName}.`, 1300]} 
+              /> 
+            </h1> 
           </div>
         )}
         

@@ -298,6 +298,7 @@ def query():
                 print("objectives successfully edited")      
 
             elif edit_intent == "regenerate": 
+                
                 full_report, summary, introduction, objectives, methodology, results_section, conclusion = run_generate_report(retriever, project_name)
 
                 summary = formatting_agent("Summary", summary)
