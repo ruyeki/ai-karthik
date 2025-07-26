@@ -16,8 +16,7 @@ from llm_utils import (
     edit_methodology_section,
     edit_results_section,
     generate_docx,
-    formatting_agent,
-    regenerate_report
+    formatting_agent
 )
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
@@ -115,6 +114,8 @@ def query():
 
     if intent == "generate_report": 
         report_data = Reports.query.filter_by(project_name = project_name).first()
+        edit_intent = classify_edit_intent(question)
+        print(f"editing {edit_intent}")
 
         if not report_data: #if no report has been generated yet, add it to the database
             
@@ -133,30 +134,29 @@ def query():
 
             db.session.add(report_data)
             db.session.commit()
+            generate_docx(project_name,report_data.summary, report_data.introduction, report_data.objectives, report_data.methodology, report_data.results, report_data.conclusion)
+            
 
         
-        else: #if the report already exists in the database, return it
-            print("report found, displaying to ui...")
-            full_report = f"""
-                    {report_data.summary}\n
-                    \n
-                    {report_data.introduction}\n
-                    \n
-                    {report_data.objectives}\n
-                    \n
-                    {report_data.methodology}\n
-                    \n
-                    {report_data.results}\n
-                    \n
-                    {report_data.conclusion}\n
-                    \n
-                    """
-            generate_docx(report_data.summary, report_data.introduction, report_data.objectives, report_data.methodology, report_data.results, report_data.conclusion)
-            
-            #check for intent to edit HERE 
-
-            edit_intent = classify_edit_intent(question)
-            print(f"editing {edit_intent}")
+        if report_data:
+            if edit_intent == "none": #if the report already exists in the database and you don't want to edit it, just return it
+                print("report found, displaying to ui...")
+                full_report = f"""
+                        {report_data.summary}\n
+                        \n
+                        {report_data.introduction}\n
+                        \n
+                        {report_data.objectives}\n
+                        \n
+                        {report_data.methodology}\n
+                        \n
+                        {report_data.results}\n
+                        \n
+                        {report_data.conclusion}\n
+                        \n
+                        """
+                generate_docx(project_name, report_data.summary, report_data.introduction, report_data.objectives, report_data.methodology, report_data.results,  report_data.conclusion)
+                
 
             if edit_intent == "introduction": 
                 new_introduction = edit_introduction_section(retriever, question, report_data.introduction)
@@ -179,7 +179,7 @@ def query():
                 report_data.introduction = formatted_introduction
                 db.session.commit()
 
-                generate_docx(report_data.summary, report_data.introduction, report_data.objectives, report_data.methodology,  report_data.results,report_data.conclusion)
+                generate_docx(project_name, report_data.summary, report_data.introduction, report_data.objectives, report_data.methodology,  report_data.results,report_data.conclusion)
                 print("introduction successfully edited")
 
             elif edit_intent == "summary": 
@@ -202,7 +202,7 @@ def query():
                 
                 report_data.summary = formatted_summary
                 db.session.commit()
-                generate_docx(report_data.summary, report_data.introduction, report_data.objectives, report_data.methodology,  report_data.results,report_data.conclusion)
+                generate_docx(project_name, report_data.summary, report_data.introduction, report_data.objectives, report_data.methodology,  report_data.results,report_data.conclusion)
                 print("summary successfully edited")
                 
             elif edit_intent == "conclusion": 
@@ -225,7 +225,7 @@ def query():
                 
                 report_data.conclusion = formatted_conclusion
                 db.session.commit()
-                generate_docx(report_data.summary, report_data.introduction, report_data.objectives, report_data.methodology,  report_data.results,report_data.conclusion)
+                generate_docx(project_name, report_data.summary, report_data.introduction, report_data.objectives, report_data.methodology,  report_data.results,report_data.conclusion)
                 print("conclusion successfully edited")
 
             elif edit_intent == "methodology": 
@@ -248,7 +248,7 @@ def query():
                 
                 report_data.methodology = formatted_methodology
                 db.session.commit()
-                generate_docx(report_data.summary, report_data.introduction, report_data.objectives, report_data.methodology,  report_data.results, report_data.conclusion)
+                generate_docx(project_name, report_data.summary, report_data.introduction, report_data.objectives, report_data.methodology,  report_data.results, report_data.conclusion)
                 print("methodology successfully edited")
 
             elif edit_intent == "results": 
@@ -271,7 +271,7 @@ def query():
                 
                 report_data.results = formatted_results
                 db.session.commit()
-                generate_docx(report_data.summary, report_data.introduction, report_data.objectives, report_data.methodology,  report_data.results, report_data.conclusion)
+                generate_docx(project_name, report_data.summary, report_data.introduction, report_data.objectives, report_data.methodology,  report_data.results, report_data.conclusion)
                 print("results successfully edited")
             
             elif edit_intent == "objectives": 
@@ -294,47 +294,29 @@ def query():
                 
                 report_data.objectives = formatted_objectives
                 db.session.commit()
-                generate_docx(report_data.summary, report_data.introduction, report_data.objectives, report_data.methodology,  report_data.results, report_data.conclusion)
+                generate_docx(project_name, report_data.summary, report_data.introduction, report_data.objectives, report_data.methodology,  report_data.results, report_data.conclusion)
                 print("objectives successfully edited")      
 
             elif edit_intent == "regenerate": 
                 
-                full_report, summary, introduction, objectives, methodology, results_section, conclusion = run_generate_report(retriever, project_name)
+                full_report, summary, introduction, objectives, methodology, results_section_text, conclusion = run_generate_report(retriever, project_name)
 
                 summary = formatting_agent("Summary", summary)
                 introduction = formatting_agent("Introduction", introduction)
                 methodology = formatting_agent("Methodology", methodology)
-                results_section = formatting_agent("Results", results_section)
+                results_section_text = formatting_agent("Results", results_section_text)
                 conclusion = formatting_agent("Conclusion", conclusion)
 
                 report_data.summary = summary
                 report_data.introduction = introduction
                 report_data.methodology = methodology
-                report_data.results_section = results_section
+                report_data.results = results_section_text
                 report_data.conclusion = conclusion
                 
                 db.session.commit()
 
-                generate_docx(summary, introduction, objectives, methodology,  results_section, conclusion)
+                generate_docx(project_name, summary, introduction, objectives, methodology,  results_section_text,  conclusion)
                 print("report successfully regenerated!")     
-
-            
-            else: #if the edit intent was none, return whats already in the database
-                full_report = f"""
-                        {report_data.summary}\n
-                        \n
-                        {report_data.introduction}\n
-                        \n
-                        {report_data.objectives}\n
-                        \n
-                        {report_data.methodology}\n
-                        \n
-                        {report_data.results}\n
-                        \n
-                        {report_data.conclusion}\n
-                        \n
-                        """
-                generate_docx(report_data.summary, report_data.introduction, report_data.objectives, report_data.methodology,  report_data.results, report_data.conclusion)  
 
         doc_url = url_for('static', filename='documents/output.docx', _external = True)
         return jsonify(text_response = full_report, doc_url = doc_url)
