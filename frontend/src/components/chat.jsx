@@ -112,7 +112,7 @@ export default function Chat({projectName, messages, setMessages}) {
     <div className="flex flex-col h-[95vh] bg-white">
 
       {/* Chat messages section */}
-      <div className="flex-1 overflow-y-auto px-4 py-5 max-w-8xl mx-auto w-full">
+      <div className="flex-1 h-screen overflow-y-auto px-4 py-5 max-w-8xl mx-auto w-full">
         {groupedMessages.length === 0 && !projectName &&(
           <div>
             <h1 className="text-4xl text-center absolute inset-0 flex items-center justify-center pointer-events-none select-none ms-60 mb-20">

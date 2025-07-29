@@ -27,6 +27,7 @@ import requests
 import json
 from pathlib import Path
 import re
+from PIL import Image
 
 # Load API key
 load_dotenv()
@@ -171,6 +172,7 @@ async def generate_objectives_agent(retriever):
     context = "\n".join(summaries)
 
     prompt_template = """
+
         You are a scientific writer. List the **Objectives** of the project based on the context.
 
         Write 3–5 numbered objectives using clear, concise, and goal-oriented language.
@@ -189,6 +191,7 @@ async def generate_objectives_agent(retriever):
           1. To develop a 6 mg/mL formulation of Allo in saline.  
           2. To evaluate physical and chemical stability over 1–3 months.  
           3. To ensure the formulation avoids infringement of existing patents.
+
     """
 
     prompt = ChatPromptTemplate.from_template(prompt_template)
@@ -239,32 +242,26 @@ async def generate_methodology(retriever, project_name):
     - Procedures performed
     - Equipment, techniques, and any measured parameters
     - Optional: brief rationale for the approach
-    - References to figures and tables inline using `[TABLE_X]`, `[FIGURE_X]` format
+    - References to tables inline using `[TABLE_X]` format
 
-    Immediately after each figure or table reference, include:
+    Immediately after each table reference, include:
 
         - The **caption** using the format:  
-        **Figure X: Description of the figure content**  
-
-        - On the line *immediately before* the caption, include **only** the raw image URL in this format (do not wrap it in tags or brackets or parentheses):  
-        `Image URL: https://graph.microsoft.com/v1.0/...`
-
-    IMPORTANT: For each figure, include both a reference and the corresponding image using a provided link (`src`). Only use images where appropriate and useful.
+        **Table X: Description of the table content**  
 
     Use a formal and concise scientific tone. Do not speculate or fabricate.
 
-    If the context includes tables or figures, mention them naturally within the paragraph text by inserting inline placeholders like `[TABLE_1]` or `[FIGURE_1]` at the exact point of reference.
+    If the context includes tables, mention them naturally within the paragraph text by inserting inline placeholders like `[TABLE_1]` at the exact point of reference.
 
-    Immediately after the paragraph that references a table or figure, include its caption on the next line in this exact format:
+    Immediately after the paragraph that references a table, include its caption on the next line in this exact format:
 
     **Table 1: Description of the data in the table**  
-    **Figure 1: Description of the figure content**
 
-    Number tables and figures sequentially throughout the entire Methodology section (i.e., TABLE_1, TABLE_2, FIGURE_1, FIGURE_2, etc.).
+    Number tables sequentially throughout the entire Methodology section (i.e., TABLE_1, TABLE_2, etc.).
 
     Do not separate placeholders and captions with extra blank lines; keep them directly below the paragraph referencing them, so they appear interwoven in the text.
 
-    Ensure each placeholder and caption pair corresponds clearly to unique tables or figures in the context.
+    Ensure each placeholder and caption pair corresponds clearly to unique tables in the context.
 
     ---
 
@@ -286,9 +283,6 @@ async def generate_methodology(retriever, project_name):
 
     ### <Subsection Title 1>
     <Your paragraph-form explanation>
-
-    **Image URL**: https://graph.microsoft.com/v1.0/siteCollections/...
-    **Figure 1: Burst release trends across polymer concentrations**  
 
     ### <Subsection Title 2>
     <Another paragraph-form explanation>
@@ -349,7 +343,8 @@ async def generate_results(retriever, project_name):
     - Description of what was tested or measured
     - Quantitative results (e.g., concentrations, timepoints)
     - Visual or physical observations (e.g., precipitate formation, emulsion behavior)
-    - References to figures and tables inline using `[TABLE_X]`, `[FIGURE_X]` format
+    - References to figures and tables inline using `[TABLE_X]`, `[FIGURE_X]` format.
+    - For figures, limit to using at most 10 figures for a section. 
     Immediately after each figure or table reference, include:
 
         - The **caption** using the format:  
@@ -359,8 +354,11 @@ async def generate_results(retriever, project_name):
         `Image URL: https://graph.microsoft.com/v1.0/...`
 
         Keep it in that format ONLY. No extra text, brackets, tags, parentheses.
+    
+    
+    IMPORTANT: For each figure, you **must** include both a reference and the corresponding image link (`src`) in the img tag. Only use images where appropriate and useful. Again, limit to 10 figures for this section.
 
-    IMPORTANT: For each figure, include both a reference and the corresponding image a provided link (`src`). Only use images where appropriate and useful.
+    Failing to include the image URL means the result is incomplete.
 
 
     Maintain proper sequential numbering throughout the section (e.g., Table 4, Figure 2, etc.).
@@ -513,6 +511,7 @@ def add_paragraphs_with_subsections(doc, text, main_heading):
     lines = text.split("\n")
     in_table = False
     table_lines = [] 
+    clean_url = []
 
     headers = {
         "Authorization": f"Bearer {token['access_token']}"
@@ -523,43 +522,55 @@ def add_paragraphs_with_subsections(doc, text, main_heading):
     for i, line in enumerate(lines):
         stripped = line.strip()
 
-        if line.strip().startswith("Image URL:"):
-            full_url = line.strip().split("Image URL:")[1].strip()
 
-            j = i + 1
-            while not full_url.endswith("$value") and j < len(lines):
-                full_url += lines[j].strip()
-                j += 1
+        #i need to take into account if there are multiple https: in the same line
 
-            print(full_url)
+        if "https:" in stripped:
+            matches = re.findall(r"(https:[^\s]*?\$value)\b", line) #searches for valid urls in a line
 
-            if "siteCollections" in full_url: #for some reason the url needs sites instead of siteCollections
-                full_url = full_url.replace("siteCollections", "sites")
+            for url in matches:
+                if "siteCollections" in url:
+                    url = url.replace("siteCollections", "sites")
+                    response = requests.get(url, headers = headers)
 
-            response = requests.get(full_url, headers = headers)
-            print(response)
+                print("URL request: ", url)
+                print(response)
 
-            if response.status_code == 400:
-                print("Bad Request! Server says:")
-                print(response.text) 
+                if response.status_code == 400:
+                    print("Bad Request! Server says:")
+                    print(response.text) 
 
-            if response.status_code == 401: #401 error means token expired, so we regenerate a new one
-                print("Token expired, refreshing...")
-                new_token = refresh_access_token(token, token_path)
-                headers = {
-                    "Authorization": f"Bearer {new_token['access_token']}"
-                }
-                response = requests.get(full_url, headers=headers)
-                print("Second try: ", response)
-                print("Final response content-type:", response.headers.get("Content-Type"))
-                print("Final response preview:\n", response.content[:300])
+                if response.status_code == 401: #401 error means token expired, so we regenerate a new one
+                    print("Token expired, refreshing...")
+                    new_token = refresh_access_token(token, token_path)
+                    headers = {
+                        "Authorization": f"Bearer {new_token['access_token']}"
+                    }
+                    response = requests.get(url, headers=headers)
+                    print("Second try: ", response)
+                    print("Final response content-type:", response.headers.get("Content-Type"))
+                    print("Final response preview:\n", response.content[:300])
 
-            if response.status_code == 200: 
-                print("Good request, inserting images...")
-                image_stream = BytesIO(response.content)
+                if response.status_code == 200: 
+                    print("Content-Type:", response.headers.get("Content-Type"))
+                    print("Good request...")
+                    print(f"First 100 bytes of content: {response.content[:100]}")
 
-                doc.add_picture(image_stream, width = Inches(5))
-                continue
+                    try: 
+
+                        image_bytes = BytesIO(response.content)
+                        image = Image.open(image_bytes)
+                        image.verify() #verify it's an actual image
+                        print("Valid image, inserting image...")
+
+                        image_bytes.seek(0)
+                        doc.add_picture(image_bytes, width = Inches(5))
+                        doc.add_paragraph("")
+                        print("Image inserted!")
+
+                    except Exception as e: 
+                        print("Invalid image content: ", e)
+                        print(f"First 100 bytes of content: {response.content[:100]}")
 
         # Handle headings first (outside tables)
         if stripped.startswith("### "):
@@ -675,13 +686,6 @@ async def generate_full_report(retriever, project_name):
     )
     
     summary, introduction, objectives, methodology, results_section, conclusion = results
-
-    summary = formatting_agent("Summary", summary)
-    introduction = formatting_agent("Introduction", introduction)
-    objectives = formatting_agent("Objectives", objectives)
-    methodology = formatting_agent("Methodology", methodology)
-    results_section = formatting_agent("Results", results_section)
-    conclusion = formatting_agent("Conclusion", conclusion)
 
     generate_docx(project_name, summary, introduction, objectives, methodology, results_section, conclusion)
     
