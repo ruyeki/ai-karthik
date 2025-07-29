@@ -28,6 +28,7 @@ import json
 from pathlib import Path
 import re
 from PIL import Image
+import time
 
 # Load API key
 load_dotenv()
@@ -539,6 +540,11 @@ def add_paragraphs_with_subsections(doc, text, main_heading):
                 if response.status_code == 400:
                     print("Bad Request! Server says:")
                     print(response.text) 
+                    
+                    time.sleep(1)
+                    response = requests.get(url, headers=headers) #try again
+                    print("Second try: ", response)
+
 
                 if response.status_code == 401: #401 error means token expired, so we regenerate a new one
                     print("Token expired, refreshing...")
@@ -1044,6 +1050,37 @@ def edit_methodology_section(retriever, user_request, old_methodology, project_n
     - Do not fabricate new data or results.
     - Use Markdown only for emphasis, lists, or formatting — but **no headings or titles**.
 
+    
+    Organize the section into relevant **subsections** with appropriate titles. Write in clear, professional **paragraph form** — avoid bullet points or numbered lists unless describing step-by-step procedures.
+
+    Always format any tables in markdown syntax using pipes (`|`) and dashes (`-`). Do not use HTML or other formats for tables.
+
+    Each subsection should include:
+    - Materials or compounds used (e.g., solvents, excipients)
+    - Procedures performed
+    - Equipment, techniques, and any measured parameters
+    - Optional: brief rationale for the approach
+    - References to tables inline using `[TABLE_X]` format
+
+    Immediately after each table reference, include:
+
+        - The **caption** using the format:  
+        **Table X: Description of the table content**  
+
+    Use a formal and concise scientific tone. Do not speculate or fabricate.
+
+    If the context includes tables, mention them naturally within the paragraph text by inserting inline placeholders like `[TABLE_1]` at the exact point of reference.
+
+    Immediately after the paragraph that references a table, include its caption on the next line in this exact format:
+
+    **Table 1: Description of the data in the table**  
+
+    Number tables sequentially throughout the entire Methodology section (i.e., TABLE_1, TABLE_2, etc.).
+
+    Do not separate placeholders and captions with extra blank lines; keep them directly below the paragraph referencing them, so they appear interwoven in the text.
+
+    Ensure each placeholder and caption pair corresponds clearly to unique tables in the context.
+
     ### Final Reminder:
     Respond with only the revised section content. No extra commentary, no labels, no headers.
 
@@ -1122,8 +1159,37 @@ Your task is to rewrite the section **based strictly on the user's request** and
 - Do not fabricate new data or results.
 - Use Markdown only for emphasis, lists, or formatting — but **no headings or titles**.
 
-### Final Reminder:
-Respond with only the revised section content. No extra commentary, no labels, no headers.
+
+Organize the section into relevant **subsections** that reflect different experiments or cohorts. Write in clear, professional **paragraph form**. Avoid interpretation or speculation — stick strictly to the observed data.
+
+Always format any tables in markdown syntax using pipes (`|`) and dashes (`-`). Do not use HTML or other formats for tables.
+
+    Each subsection should include:
+    - Description of what was tested or measured
+    - Quantitative results (e.g., concentrations, timepoints)
+    - Visual or physical observations (e.g., precipitate formation, emulsion behavior)
+    - References to figures and tables inline using `[TABLE_X]`, `[FIGURE_X]` format.
+    - For figures, limit to using at most 10 figures for a section. 
+    Immediately after each figure or table reference, include:
+
+        - The **caption** using the format:  
+        **Figure X: Description of the figure content**  
+
+        - On the line *immediately before* the caption, include **only** the raw image URL in this format (do not wrap it in tags or brackets or parentheses):  
+        `Image URL: https://graph.microsoft.com/v1.0/...`
+
+        Keep it in that format ONLY. No extra text, brackets, tags, parentheses.
+    
+    
+    IMPORTANT: For each figure, you **must** include both a reference and the corresponding image link (`src`) in the img tag. Only use images where appropriate and useful. Again, limit to 10 figures for this section.
+
+    Failing to include the image URL means the result is incomplete.
+
+
+    Maintain proper sequential numbering throughout the section (e.g., Table 4, Figure 2, etc.).
+
+    ### Final Reminder:
+    Respond with only the revised section content. No extra commentary, no labels, no headers.
 
 
     ---
