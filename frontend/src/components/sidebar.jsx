@@ -132,7 +132,7 @@ export default function MySidebar({onSelectProject}) {
         ) : (
       <Menu iconShape="circle">
       {projectNames.map((project, index) => (
-          <MenuItem style={menuItemStyle} onClick={() => handleSideBarClick(project.name)} active = {activeProject === project.name}>
+          <MenuItem className = "hover:bg-gray-200 rounded-lg " style={{menuItemStyle, backgroundColor: activeProject === project.name ? '#e0e0e0'  : 'transparent',  borderRadius: '10px'}} onClick={() => handleSideBarClick(project.name)} active = {activeProject === project.name}>
             {project.name}
           </MenuItem>
       ))}
