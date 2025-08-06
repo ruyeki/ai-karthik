@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, url_for, send_from_directory
 from flask_cors import CORS
-from helper_functions import process_pdf, summarize_content, connect_db, store_to_db, query_llm,create_new_db, display_base64_image, process_html
+from utils import process_pdf, summarize_content, connect_db, store_to_db, query_llm,create_new_db, display_base64_image, process_html
 import os
 from flask_sqlalchemy import SQLAlchemy
 from models import db, Projects, Reports
@@ -18,6 +18,8 @@ from llm_utils import (
     generate_docx,
     formatting_agent
 )
+
+
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
 
@@ -356,6 +358,8 @@ def create_project():
         "message": f"Successfully created project: {project_name}"
     }), 200
 
+
+
 @app.route('/connect_to_db', methods = ['POST'])
 def connect_to_db(): 
     data = request.get_json()
@@ -393,6 +397,8 @@ def get_project_names():
     
     except Exception as e: 
         return jsonify({"status": "error", "message": str(e)}), 500
+
+
 
 if __name__ == '__main__':
     with app.app_context():

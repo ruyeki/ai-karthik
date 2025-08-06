@@ -1,6 +1,16 @@
 import os
 from flask_sqlalchemy import SQLAlchemy
 
+'''
+Projects DB: 
+- contains all the names of the projects
+- this db is used to display the projects on the sidebar as well as when adding a new project.
+
+
+Reports DB: 
+- contains the LATEST generated report for a specific project.
+'''
+
 db = SQLAlchemy()
 
 

@@ -1,18 +1,17 @@
-from langchain_openai import ChatOpenAI
+from langchain_community.chat_models import ChatOpenAI
 from dotenv import load_dotenv
 import os
-from helper_functions import parse_response, connect_db
+from utils import parse_response, connect_db
 from langchain_core.runnables import RunnableLambda
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 import pickle
-from helper_functions import build_prompt, parse_response
+from utils import build_prompt, parse_response
 from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from langchain.retrievers import ContextualCompressionRetriever
 from langchain.retrievers.document_compressors import LLMChainExtractor
 import base64
 from langchain_core.messages import SystemMessage, HumanMessage
-from langchain_openai import ChatOpenAI
 from base64 import b64decode
 import tiktoken
 import google.generativeai as genai
@@ -30,6 +29,12 @@ import re
 from PIL import Image
 import time
 
+'''
+
+This file contains all of the LLM code used to generate reports. 
+
+'''
+
 # Load API key
 load_dotenv()
 api_key = os.getenv("GEMINI_API_KEY")
@@ -39,17 +44,6 @@ genai.configure(api_key=api_key)
 
 
 doc = Document()
-
-
-#This is not as good as 2.5 pro, but use this in case the gemini tokens that karthik gave run out
-'''
-model = ChatOpenAI(
-    temperature=0.5,
-    model_name="google/gemini-2.5-flash-preview-05-20",  
-    base_url="https://openrouter.ai/api/v1",
-    api_key=openai_api_key
-)
-'''
 
 #better chat model for report generation
 model = ChatGoogleGenerativeAI(
@@ -209,7 +203,7 @@ async def generate_methodology(retriever, project_name):
         with open("./caches/all_content_cache.pkl", "rb") as f: 
             all_content = pickle.load(f)
 
-    project_raw_documents = all_content[project_name]
+    project_raw_documents = [page["content"] for page in all_content[project_name]]
 
     def is_methodology_related(element): 
         text = str(element).lower()
@@ -305,9 +299,7 @@ async def generate_results(retriever, project_name):
     if os.path.exists("./caches/all_content_cache.pkl"): 
         with open("./caches/all_content_cache.pkl", "rb") as f: 
             all_content = pickle.load(f)
-
-    project_raw_documents = all_content[project_name]
-
+    project_raw_documents = [page["content"] for page in all_content[project_name]]
 
     def is_results_related(element): 
         text = str(element).lower()
@@ -445,7 +437,7 @@ async def generate_conclusion(retriever, project_name):
         with open("./caches/all_content_cache.pkl", "rb") as f: 
             all_content = pickle.load(f)
 
-    project_raw_documents = all_content[project_name]
+    project_raw_documents = [page["content"] for page in all_content[project_name]]
 
     def is_results_related(element): 
         text = str(element).lower()
@@ -667,12 +659,6 @@ Raw content:
 Return only the cleaned and formatted section.
 """)
 
-    model = ChatOpenAI(
-        temperature=0.3,
-        model_name="gpt-4o-mini",
-        base_url="https://openrouter.ai/api/v1",
-        openai_api_key=openai_api_key,
-    )
 
     chain = prompt | model | StrOutputParser()
 
@@ -746,12 +732,7 @@ def classify_edit_intent(question):
     """)
 
     
-    model = ChatOpenAI(
-        temperature=0.5,
-        model_name="gpt-4o-mini",
-        base_url="https://openrouter.ai/api/v1",
-        openai_api_key=openai_api_key,
-    )
+
 
     chain = prompt_template | model | StrOutputParser()
 
@@ -1007,7 +988,7 @@ def edit_methodology_section(retriever, user_request, old_methodology, project_n
         with open("./caches/all_content_cache.pkl", "rb") as f: 
             all_content = pickle.load(f)
 
-    project_raw_documents = all_content[project_name]
+    project_raw_documents = [page["content"] for page in all_content[project_name]]
 
     def is_results_related(element): 
         text = str(element).lower()
@@ -1117,7 +1098,7 @@ def edit_results_section(retriever, user_request, old_results, project_name):
     with open("./caches/all_content_cache.pkl", "rb") as f:
         all_content = pickle.load(f)
 
-    project_raw_documents = all_content.get(project_name, [])
+    project_raw_documents = [page["content"] for page in all_content[project_name]]
 
     def is_results_related(element): 
         text = str(element).lower()
@@ -1234,12 +1215,6 @@ def classify_intent(question):
     """)
 
 
-    model = ChatOpenAI(
-        temperature=0.5,
-        model_name="gpt-4o-mini",
-        base_url="https://openrouter.ai/api/v1",
-        openai_api_key=openai_api_key,
-    )
 
     chain = prompt_template | model | StrOutputParser()
 
@@ -1257,13 +1232,6 @@ def casual_conversation_agent(question):
     {user_question}
     """)
 
-
-    model = ChatOpenAI(
-        temperature=0.5,
-        model_name="gpt-4o-mini",
-        base_url="https://openrouter.ai/api/v1",
-        openai_api_key=openai_api_key,
-    )
 
     chain = prompt | model | StrOutputParser()
 

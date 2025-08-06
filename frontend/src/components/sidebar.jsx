@@ -10,6 +10,7 @@ import {Spinner} from "@heroui/react";
 export default function MySidebar({onSelectProject}) {
 
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const [modalType, setModalType] = useState("");
   const [backdrop, setBackdrop] = React.useState("opaque");
   const [userInput, setUserInput] = useState("");
   const [isLoading, setLoading] = useState(false);
@@ -17,16 +18,24 @@ export default function MySidebar({onSelectProject}) {
   const [activeProject, setActiveProject] = useState("");
   const [activeProjectLoading, setActiveProjectLoading] = useState(false);
   const [sideBarLoading, setSideBarLoading] = useState(false);
+  const [isSyncLoading, setSyncLoading] = useState(false);
+
+
   const backdrops = ["opaque", "blur", "transparent"];
 
   useEffect(()=>{
-    getProjects();
+    getProjects(); 
   }, []);
 
-  const handleOpen = (backdropType) => {
+  const handleOpen = (type, backdropType) => {
     setBackdrop(backdropType);
-    onOpen();
+    setModalType(type);
   };
+
+  const handleClose = () => {
+    setModalType("");
+  }
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -142,13 +151,14 @@ export default function MySidebar({onSelectProject}) {
 
         <div className="sticky bottom-0 bg-[#f9fafb] p-4 flex flex-col gap-3 ">
 
-          <Button key = "blur" className = "capitalize" variant = "ghost" onPress={() => handleOpen("blur")}>Add Project</Button>
+          <Button key = "blur" className = "capitalize" variant = "ghost" onPress = {()=> handleOpen("sync" ,"blur")}>Sync OneNote</Button>
 
         </div>
 
       </ProSidebar>
+          {modalType === "add" && (
 
-      <Modal backdrop={backdrop} isOpen={isOpen} onClose={onClose}>
+      <Modal backdrop={backdrop} isOpen = {true} onClose={handleClose}>
         <ModalContent>
           {(onClose) => (
             <>
@@ -173,6 +183,43 @@ export default function MySidebar({onSelectProject}) {
           )}
         </ModalContent>
       </Modal>
+
+          )}
+
+      {modalType === "sync" && (
+
+            <Modal backdrop={backdrop}  isOpen = {true} onClose={handleClose}>
+              <ModalContent>
+                {(onClose) => (
+                  <>
+                    <ModalHeader className="flex flex-col gap-1">
+                      Sync OneNote
+                    </ModalHeader>
+                    <ModalBody>
+                        <strong>
+                          Please note: This process may take several minutes to complete.
+                        </strong>
+
+                        <p>
+                          It will synchronize AI Karthik with the latest updates and changes from OneNote. Make sure all recent edits are saved before proceeding.
+                        </p>
+                    </ModalBody>
+                    <ModalFooter>
+                      <Button color="danger" variant="light" onPress={onClose}>
+                        Close
+                      </Button>
+                      <Button isLoading={isSyncLoading} type = "submit" color="primary" onPress={onClose}>
+                        Continue
+                      </Button>
+                    </ModalFooter>
+                  </>
+                )}
+              </ModalContent>
+            </Modal>
+
+
+      )}
+
     </div>
   );
 }
